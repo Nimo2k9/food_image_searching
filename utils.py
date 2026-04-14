@@ -21,7 +21,7 @@ genai.configure(api_key=get_secret("GEMINI_API_KEY"))
 # -------------------------------
 def detect_food(image_file):
     try:
-        model = genai.GenerativeModel("gemini-3-pro")
+        model = genai.GenerativeModel("gemini-3.1-pro-preview")
 
         image_bytes = image_file.read()
 
