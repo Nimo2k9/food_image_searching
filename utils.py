@@ -9,35 +9,37 @@ import google.generativeai as genai
 def get_secret(key):
     return os.getenv(key) or st.secrets.get(key)
 
-
 # -------------------------------
 # CONFIGURE GEMINI
 # -------------------------------
 genai.configure(api_key=get_secret("GEMINI_API_KEY"))
 
-
 # -------------------------------
-# IMAGE → FOOD NAME
+# IMAGE → FOOD NAME (GEMINI)
 # -------------------------------
 def detect_food(image_file):
     try:
-        model = genai.GenerativeModel("gemini-3.1-flash-lite-preview")
+        model = genai.GenerativeModel("gemini-1.5-flash")
+
+        # Reset pointer (VERY IMPORTANT)
+        image_file.seek(0)
 
         image_bytes = image_file.read()
 
-        response = model.generate_content([
-            "Identify the food in this image. Return only a simple food name.",
-            {
-                "mime_type": "image/jpeg",
-                "data": image_bytes
-            }
-        ])
+        response = model.generate_content(
+            [
+                "Identify the food in this image. Return only a simple food name.",
+                {
+                    "mime_type": image_file.type,
+                    "data": image_bytes
+                }
+            ]
+        )
 
         return response.text.strip()
 
     except Exception as e:
         return f"Error: {str(e)}"
-
 
 # -------------------------------
 # CLEAN FOOD NAME
@@ -45,9 +47,8 @@ def detect_food(image_file):
 def clean_food_name(food_name):
     return food_name.lower().strip()
 
-
 # -------------------------------
-# USDA NUTRITION
+# USDA NUTRITION (FREE)
 # -------------------------------
 def get_nutrition(food_name):
     try:
