@@ -1,53 +1,74 @@
 import streamlit as st
 from PIL import Image
-from utils import detect_food, get_nutrition, clean_food_name
+import pandas as pd
+import matplotlib.pyplot as plt
 
-st.set_page_config(page_title="🍱 Food Nutrition Analyzer", layout="centered")
+from utils import detect_foods, get_nutrition, normalize_food
 
-st.title("🍱 AI Food Nutrition Analyzer (FREE)")
-st.write("Upload a food image to get nutrition details")
+st.title("🍱 AI Food Analyzer V2 (Multi-Food + Charts)")
 
-uploaded_file = st.file_uploader("Upload Food Image", type=["jpg", "jpeg", "png"])
+uploaded_file = st.file_uploader("Upload Food Image", type=["jpg","png","jpeg"])
 
 if uploaded_file:
-    # Open image
     image = Image.open(uploaded_file)
-
-    # Resize image (VERY IMPORTANT FIX)
     image = image.resize((512, 512))
 
-    st.image(image, caption="Uploaded Image", use_column_width=True)
+    st.image(image)
 
     if st.button("Analyze Food"):
 
-        # Reset file pointer before reading
         uploaded_file.seek(0)
 
-        with st.spinner("🔍 Detecting food..."):
-            food_name = detect_food(uploaded_file)
-            food_name = clean_food_name(food_name)
+        foods = detect_foods(uploaded_file)
 
-        # Debug (optional - remove later)
-        st.write("DEBUG:", food_name)
+        if "error" in foods[0]:
+            st.warning("⚠️ Detection failed. Enter manually.")
+            foods = st.text_input("Enter foods (comma separated)").split(",")
 
-        # If AI fails → fallback
-        if "error" in food_name.lower():
-            st.warning("⚠️ AI detection failed. Please enter food manually.")
-            food_name = st.text_input("Enter food name (e.g., apple, rice, chicken)")
+        foods = [normalize_food(f.strip()) for f in foods]
 
-        if food_name:
-            st.success(f"🍽 Detected: {food_name}")
+        st.success(f"Detected foods: {', '.join(foods)}")
 
-            with st.spinner("📊 Getting nutrition data..."):
-                nutrition = get_nutrition(food_name)
+        all_data = []
 
-            if "error" not in nutrition:
-                col1, col2, col3, col4 = st.columns(4)
+        for food in foods:
+            nutrition = get_nutrition(food)
 
-                col1.metric("Calories", nutrition["Calories"])
-                col2.metric("Protein", nutrition["Protein"])
-                col3.metric("Fat", nutrition["Fat"])
-                col4.metric("Carbs", nutrition["Carbs"])
+            if nutrition:
+                nutrition["Food"] = food
+                all_data.append(nutrition)
 
-            else:
-                st.error("❌ No nutrition data found")
+        if all_data:
+            df = pd.DataFrame(all_data)
+
+            st.subheader("📊 Nutrition Table")
+            st.dataframe(df)
+
+            # TOTALS
+            total = df[["Calories","Protein","Fat","Carbs"]].sum()
+
+            st.subheader("🔥 Total Nutrition")
+            col1, col2, col3, col4 = st.columns(4)
+
+            col1.metric("Calories", int(total["Calories"]))
+            col2.metric("Protein", int(total["Protein"]))
+            col3.metric("Fat", int(total["Fat"]))
+            col4.metric("Carbs", int(total["Carbs"]))
+
+            # -----------------------
+            # BAR CHART
+            # -----------------------
+            st.subheader("📊 Macronutrients Bar Chart")
+
+            fig, ax = plt.subplots()
+            ax.bar(total.index, total.values)
+            st.pyplot(fig)
+
+            # -----------------------
+            # PIE CHART
+            # -----------------------
+            st.subheader("🥧 Macronutrients Distribution")
+
+            fig2, ax2 = plt.subplots()
+            ax2.pie(total.values, labels=total.index, autopct='%1.1f%%')
+            st.pyplot(fig2)
