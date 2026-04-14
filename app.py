@@ -10,21 +10,30 @@ st.write("Upload a food image to get nutrition details")
 uploaded_file = st.file_uploader("Upload Food Image", type=["jpg", "jpeg", "png"])
 
 if uploaded_file:
+    # Open image
     image = Image.open(uploaded_file)
+
+    # Resize image (VERY IMPORTANT FIX)
+    image = image.resize((512, 512))
+
     st.image(image, caption="Uploaded Image", use_column_width=True)
 
     if st.button("Analyze Food"):
-        # Reset pointer BEFORE sending to Gemini
+
+        # Reset file pointer before reading
         uploaded_file.seek(0)
 
         with st.spinner("🔍 Detecting food..."):
             food_name = detect_food(uploaded_file)
             food_name = clean_food_name(food_name)
 
-        # Handle Gemini errors
+        # Debug (optional - remove later)
+        st.write("DEBUG:", food_name)
+
+        # If AI fails → fallback
         if "error" in food_name.lower():
             st.warning("⚠️ AI detection failed. Please enter food manually.")
-            food_name = st.text_input("Enter food name manually")
+            food_name = st.text_input("Enter food name (e.g., apple, rice, chicken)")
 
         if food_name:
             st.success(f"🍽 Detected: {food_name}")
@@ -42,4 +51,3 @@ if uploaded_file:
 
             else:
                 st.error("❌ No nutrition data found")
-st.write("DEBUG:", food_name)
