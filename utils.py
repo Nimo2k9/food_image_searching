@@ -3,65 +3,70 @@ import os
 import streamlit as st
 import google.generativeai as genai
 
-# -------------------------------
-# SECRET HANDLER
-# -------------------------------
 def get_secret(key):
     return os.getenv(key) or st.secrets.get(key)
 
-# -------------------------------
-# CONFIGURE GEMINI
-# -------------------------------
 genai.configure(api_key=get_secret("GEMINI_API_KEY"))
 
 # -------------------------------
-# IMAGE → FOOD NAME (GEMINI)
+# MULTI FOOD DETECTION
 # -------------------------------
-def detect_food(image_file):
+def detect_foods(image_file):
     try:
-        model = genai.GenerativeModel("gemini-3.1-flash-lite-preview")
+        model = genai.GenerativeModel("gemini-1.5-flash")
 
-        # Reset pointer (IMPORTANT)
         image_file.seek(0)
-
         image_bytes = image_file.read()
 
-        if not image_bytes:
-            return "Error: Empty image"
-
         response = model.generate_content([
-            "What food is this? Reply with only the food name (e.g., apple, rice, chicken curry).",
+            "Identify all food items in this image. Return only food names separated by commas. Example: rice, chicken, salad",
             {
                 "mime_type": image_file.type,
                 "data": image_bytes
             }
         ])
 
-        if not response.text:
-            return "Error: No response from Gemini"
+        text = response.text.lower().strip()
 
-        return response.text.strip()
+        foods = [f.strip() for f in text.split(",") if f.strip()]
+
+        return foods
 
     except Exception as e:
-        return f"Error: {str(e)}"
+        return [f"error: {str(e)}"]
+
 
 # -------------------------------
-# CLEAN FOOD NAME
+# CLEAN FOOD
 # -------------------------------
-def clean_food_name(food_name):
-    return food_name.lower().replace("\n", "").strip()
+def clean_food(food):
+    return food.replace("\n", "").strip()
+
 
 # -------------------------------
-# USDA NUTRITION (FREE)
+# BANGLADESHI FOOD MAPPING
 # -------------------------------
-def get_nutrition(food_name):
+def normalize_food(food):
+    if "biryani" in food:
+        return "chicken rice"
+    if "khichuri" in food:
+        return "rice and lentils"
+    if "hilsa" in food:
+        return "fish curry"
+    return food
+
+
+# -------------------------------
+# USDA NUTRITION
+# -------------------------------
+def get_nutrition(food):
     try:
         api_key = get_secret("USDA_API_KEY")
 
         url = "https://api.nal.usda.gov/fdc/v1/foods/search"
 
         params = {
-            "query": food_name,
+            "query": food,
             "api_key": api_key
         }
 
@@ -69,9 +74,8 @@ def get_nutrition(food_name):
         data = response.json()
 
         foods = data.get("foods")
-
         if not foods:
-            return {"error": "No food found"}
+            return None
 
         nutrients = foods[0].get("foodNutrients", [])
 
@@ -96,5 +100,5 @@ def get_nutrition(food_name):
 
         return result
 
-    except Exception as e:
-        return {"error": str(e)}
+    except:
+        return None
