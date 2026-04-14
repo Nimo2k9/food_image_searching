@@ -2,31 +2,43 @@ import streamlit as st
 from PIL import Image
 from utils import detect_food, get_nutrition, clean_food_name
 
-st.title("🍱 AI Food Nutrition Analyzer (FREE VERSION)")
+st.set_page_config(page_title="🍱 Food Nutrition Analyzer", layout="centered")
 
-uploaded_file = st.file_uploader("Upload Food Image", type=["jpg", "png", "jpeg"])
+st.title("🍱 AI Food Nutrition Analyzer (FREE)")
+st.write("Upload a food image to get nutrition details")
+
+uploaded_file = st.file_uploader("Upload Food Image", type=["jpg", "jpeg", "png"])
 
 if uploaded_file:
     image = Image.open(uploaded_file)
-    st.image(image, caption="Uploaded Image")
+    st.image(image, caption="Uploaded Image", use_column_width=True)
 
-    if st.button("Analyze"):
+    if st.button("Analyze Food"):
+        # Reset pointer BEFORE sending to Gemini
+        uploaded_file.seek(0)
+
         with st.spinner("🔍 Detecting food..."):
             food_name = detect_food(uploaded_file)
             food_name = clean_food_name(food_name)
 
-        st.success(f"🍽 Detected: {food_name}")
+        # Handle Gemini errors
+        if "error" in food_name.lower():
+            st.warning("⚠️ AI detection failed. Please enter food manually.")
+            food_name = st.text_input("Enter food name manually")
 
-        with st.spinner("📊 Getting nutrition data..."):
-            nutrition = get_nutrition(food_name)
+        if food_name:
+            st.success(f"🍽 Detected: {food_name}")
 
-        if "error" not in nutrition:
-            col1, col2, col3, col4 = st.columns(4)
+            with st.spinner("📊 Getting nutrition data..."):
+                nutrition = get_nutrition(food_name)
 
-            col1.metric("Calories", nutrition["Calories"])
-            col2.metric("Protein", nutrition["Protein"])
-            col3.metric("Fat", nutrition["Fat"])
-            col4.metric("Carbs", nutrition["Carbs"])
+            if "error" not in nutrition:
+                col1, col2, col3, col4 = st.columns(4)
 
-        else:
-            st.error("❌ No nutrition data found")
+                col1.metric("Calories", nutrition["Calories"])
+                col2.metric("Protein", nutrition["Protein"])
+                col3.metric("Fat", nutrition["Fat"])
+                col4.metric("Carbs", nutrition["Carbs"])
+
+            else:
+                st.error("❌ No nutrition data found")
