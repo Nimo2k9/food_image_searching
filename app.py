@@ -42,3 +42,4 @@ if uploaded_file:
 
             else:
                 st.error("❌ No nutrition data found")
+st.write("DEBUG:", food_name)
