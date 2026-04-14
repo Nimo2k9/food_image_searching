@@ -21,20 +21,24 @@ def detect_food(image_file):
     try:
         model = genai.GenerativeModel("gemini-1.5-flash")
 
-        # Reset pointer (VERY IMPORTANT)
+        # Reset pointer (IMPORTANT)
         image_file.seek(0)
 
         image_bytes = image_file.read()
 
-        response = model.generate_content(
-            [
-                "Identify the food in this image. Return only a simple food name.",
-                {
-                    "mime_type": image_file.type,
-                    "data": image_bytes
-                }
-            ]
-        )
+        if not image_bytes:
+            return "Error: Empty image"
+
+        response = model.generate_content([
+            "What food is this? Reply with only the food name (e.g., apple, rice, chicken curry).",
+            {
+                "mime_type": image_file.type,
+                "data": image_bytes
+            }
+        ])
+
+        if not response.text:
+            return "Error: No response from Gemini"
 
         return response.text.strip()
 
@@ -45,7 +49,7 @@ def detect_food(image_file):
 # CLEAN FOOD NAME
 # -------------------------------
 def clean_food_name(food_name):
-    return food_name.lower().strip()
+    return food_name.lower().replace("\n", "").strip()
 
 # -------------------------------
 # USDA NUTRITION (FREE)
