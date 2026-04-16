@@ -1,74 +1,115 @@
 import streamlit as st
 from PIL import Image
-import pandas as pd
-import matplotlib.pyplot as plt
+from utils import detect_food, get_nutrition
 
-from utils import detect_foods, get_nutrition, normalize_food
+st.set_page_config(page_title="🍱 Food Analyzer", layout="centered")
 
-st.title("🍱 AI Food Analyzer V2 (Multi-Food + Charts)")
+st.title("🍱 AI Food Nutrition Analyzer + Tracker")
+st.caption("⚡ Fast • Free • Track Your Daily Intake")
 
-uploaded_file = st.file_uploader("Upload Food Image", type=["jpg","png","jpeg"])
+# -------------------------------
+# SESSION STATE (STORE DATA)
+# -------------------------------
+if "log" not in st.session_state:
+    st.session_state.log = []
+
+# -------------------------------
+# IMAGE INPUT
+# -------------------------------
+uploaded_file = st.file_uploader("Upload Food Image", type=["jpg","jpeg","png"])
+
+food = None
+nutrition = None
 
 if uploaded_file:
     image = Image.open(uploaded_file)
-    image = image.resize((512, 512))
-
+    image = image.resize((256, 256))
     st.image(image)
 
     if st.button("Analyze Food"):
-
         uploaded_file.seek(0)
 
-        foods = detect_foods(uploaded_file)
+        with st.spinner("🔍 Detecting food..."):
+            food = detect_food(uploaded_file)
 
-        if "error" in foods[0]:
-            st.warning("⚠️ Detection failed. Enter manually.")
-            foods = st.text_input("Enter foods (comma separated)").split(",")
+        if food == "error":
+            st.warning("⚠️ AI failed. Enter manually.")
+            food = st.text_input("Enter food name")
 
-        foods = [normalize_food(f.strip()) for f in foods]
+        if food:
+            st.success(f"🍽 Food: {food}")
 
-        st.success(f"Detected foods: {', '.join(foods)}")
-
-        all_data = []
-
-        for food in foods:
-            nutrition = get_nutrition(food)
+            with st.spinner("📊 Getting nutrition..."):
+                nutrition = get_nutrition(food)
 
             if nutrition:
-                nutrition["Food"] = food
-                all_data.append(nutrition)
+                col1, col2, col3, col4 = st.columns(4)
+                col1.metric("Calories", int(nutrition["Calories"]))
+                col2.metric("Protein", int(nutrition["Protein"]))
+                col3.metric("Fat", int(nutrition["Fat"]))
+                col4.metric("Carbs", int(nutrition["Carbs"]))
 
-        if all_data:
-            df = pd.DataFrame(all_data)
+                # -------------------------------
+                # ADD TO LOG BUTTON
+                # -------------------------------
+                if st.button("➕ Add to Daily Log"):
+                    st.session_state.log.append({
+                        "Food": food,
+                        **nutrition
+                    })
+                    st.success("Added to log!")
 
-            st.subheader("📊 Nutrition Table")
-            st.dataframe(df)
+            else:
+                st.error("❌ Nutrition not found")
 
-            # TOTALS
-            total = df[["Calories","Protein","Fat","Carbs"]].sum()
+# -------------------------------
+# DASHBOARD
+# -------------------------------
+st.divider()
+st.subheader("📊 Daily Calorie Tracker")
 
-            st.subheader("🔥 Total Nutrition")
-            col1, col2, col3, col4 = st.columns(4)
+if st.session_state.log:
 
-            col1.metric("Calories", int(total["Calories"]))
-            col2.metric("Protein", int(total["Protein"]))
-            col3.metric("Fat", int(total["Fat"]))
-            col4.metric("Carbs", int(total["Carbs"]))
+    import pandas as pd
+    import matplotlib.pyplot as plt
 
-            # -----------------------
-            # BAR CHART
-            # -----------------------
-            st.subheader("📊 Macronutrients Bar Chart")
+    df = pd.DataFrame(st.session_state.log)
 
-            fig, ax = plt.subplots()
-            ax.bar(total.index, total.values)
-            st.pyplot(fig)
+    st.dataframe(df)
 
-            # -----------------------
-            # PIE CHART
-            # -----------------------
-            st.subheader("🥧 Macronutrients Distribution")
+    totals = df[["Calories","Protein","Fat","Carbs"]].sum()
 
-            fig2, ax2 = plt.subplots()
-            ax2.pie(total.values, labels=total.index, autopct='%1.1f%%')
-            st.pyplot(fig2)
+    # METRICS
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Total Calories", int(totals["Calories"]))
+    col2.metric("Protein", int(totals["Protein"]))
+    col3.metric("Fat", int(totals["Fat"]))
+    col4.metric("Carbs", int(totals["Carbs"]))
+
+    # -------------------------------
+    # BAR CHART
+    # -------------------------------
+    st.subheader("📊 Macronutrient Breakdown")
+
+    fig, ax = plt.subplots()
+    ax.bar(totals.index, totals.values)
+    st.pyplot(fig)
+
+    # -------------------------------
+    # PIE CHART
+    # -------------------------------
+    st.subheader("🥧 Distribution")
+
+    fig2, ax2 = plt.subplots()
+    ax2.pie(totals.values, labels=totals.index, autopct='%1.1f%%')
+    st.pyplot(fig2)
+
+    # -------------------------------
+    # RESET BUTTON
+    # -------------------------------
+    if st.button("🗑 Reset Daily Log"):
+        st.session_state.log = []
+        st.success("Log cleared!")
+
+else:
+    st.info("No foods added yet.")
