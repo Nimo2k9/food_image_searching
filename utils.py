@@ -9,13 +9,10 @@ import google.generativeai as genai
 def get_secret(key):
     return os.getenv(key) or st.secrets.get(key)
 
-# -------------------------------
-# CONFIGURE GEMINI
-# -------------------------------
 genai.configure(api_key=get_secret("GEMINI_API_KEY"))
 
 # -------------------------------
-# DETECT FOOD (IMPROVED ACCURACY)
+# FAST SINGLE FOOD DETECTION
 # -------------------------------
 def detect_food(image_file):
     try:
@@ -26,60 +23,26 @@ def detect_food(image_file):
 
         response = model.generate_content(
             [
-                """You are a food recognition expert.
-
-Identify the MAIN food in this image as accurately as possible.
-
-Rules:
-- Return ONLY one food name
-- Be specific (e.g., 'chicken biryani', not just 'rice')
-- Use common food names
-- No explanation
-""",
+                "Identify the main food in this image. Return ONLY one simple food name like 'apple', 'rice', or 'chicken curry'.",
                 {
                     "mime_type": image_file.type,
                     "data": image_bytes
                 }
             ],
-            request_options={"timeout": 8}
+            request_options={"timeout": 8}   # 🔥 prevents hanging
         )
 
         if not response.text:
             return "error"
 
-        food = response.text.strip().lower()
-
-        # Clean output
-        food = food.replace("\n", "").replace(".", "")
-        food = food.split(",")[0]
-
-        return food
+        return response.text.strip().lower()
 
     except:
         return "error"
 
 
 # -------------------------------
-# NORMALIZE FOOD (BOOST ACCURACY)
-# -------------------------------
-def normalize_food(food):
-    if "biryani" in food:
-        return "chicken biryani"
-    if "khichuri" in food:
-        return "rice and lentils"
-    if "polao" in food:
-        return "rice pilaf"
-    if "hilsa" in food:
-        return "fish curry"
-    if "beef curry" in food:
-        return "beef stew"
-    if "fried rice" in food:
-        return "fried rice"
-    return food
-
-
-# -------------------------------
-# USDA NUTRITION
+# USDA WITH TIMEOUT
 # -------------------------------
 @st.cache_data(show_spinner=False)
 def get_nutrition(food):
