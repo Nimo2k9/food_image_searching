@@ -15,7 +15,7 @@ def get_secret(key):
 genai.configure(api_key=get_secret("GEMINI_API_KEY"))
 
 # -------------------------------
-# DETECT FOOD (FAST)
+# DETECT FOOD (IMPROVED ACCURACY)
 # -------------------------------
 def detect_food(image_file):
     try:
@@ -24,12 +24,18 @@ def detect_food(image_file):
         image_file.seek(0)
         image_bytes = image_file.read()
 
-        if not image_bytes:
-            return "error"
-
         response = model.generate_content(
             [
-                "Identify the main food in this image. Return only one food name.",
+                """You are a food recognition expert.
+
+Identify the MAIN food in this image as accurately as possible.
+
+Rules:
+- Return ONLY one food name
+- Be specific (e.g., 'chicken biryani', not just 'rice')
+- Use common food names
+- No explanation
+""",
                 {
                     "mime_type": image_file.type,
                     "data": image_bytes
@@ -41,10 +47,35 @@ def detect_food(image_file):
         if not response.text:
             return "error"
 
-        return response.text.strip().lower()
+        food = response.text.strip().lower()
+
+        # Clean output
+        food = food.replace("\n", "").replace(".", "")
+        food = food.split(",")[0]
+
+        return food
 
     except:
         return "error"
+
+
+# -------------------------------
+# NORMALIZE FOOD (BOOST ACCURACY)
+# -------------------------------
+def normalize_food(food):
+    if "biryani" in food:
+        return "chicken biryani"
+    if "khichuri" in food:
+        return "rice and lentils"
+    if "polao" in food:
+        return "rice pilaf"
+    if "hilsa" in food:
+        return "fish curry"
+    if "beef curry" in food:
+        return "beef stew"
+    if "fried rice" in food:
+        return "fried rice"
+    return food
 
 
 # -------------------------------
