@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 from utils import detect_foods, get_nutrition, normalize_food
 
-st.title("🍱 AI Food Analyzer V2 (Multi-Food + Charts)")
+st.title("🍱 AI Food Analyzer ")
 
 uploaded_file = st.file_uploader("Upload Food Image", type=["jpg","png","jpeg"])
 
