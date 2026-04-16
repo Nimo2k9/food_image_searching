@@ -20,10 +20,10 @@ def detect_food(image_file):
 
         image_file.seek(0)
         image_bytes = image_file.read()
-
+# Return ONLY one simple food name like 'apple', 'rice', or 'chicken curry
         response = model.generate_content(
             [
-                "Identify the main food in this image. Return ONLY one simple food name like 'apple', 'rice', or 'chicken curry'.",
+                "Identify the main food in this image.'.",
                 {
                     "mime_type": image_file.type,
                     "data": image_bytes
