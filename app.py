@@ -1,44 +1,74 @@
 import streamlit as st
 from PIL import Image
-from utils import detect_food, get_nutrition
+import pandas as pd
+import matplotlib.pyplot as plt
 
-st.set_page_config(page_title="🍱 Food Analyzer", layout="centered")
+from utils import detect_foods, get_nutrition, normalize_food
 
-st.title("🍱 AI Food Nutrition Analyzer")
-st.caption("⚡ Fast • Free • Production Ready")
+st.title("🍱 AI Food Analyzer V2 (Multi-Food + Charts)")
 
-uploaded_file = st.file_uploader("Upload Food Image", type=["jpg","jpeg","png"])
+uploaded_file = st.file_uploader("Upload Food Image", type=["jpg","png","jpeg"])
 
 if uploaded_file:
     image = Image.open(uploaded_file)
-    image = image.resize((256, 256))  # 🔥 speed optimization
+    image = image.resize((512, 512))
+
     st.image(image)
 
     if st.button("Analyze Food"):
 
         uploaded_file.seek(0)
 
-        with st.spinner("🔍 Detecting food..."):
-            food = detect_food(uploaded_file)
+        foods = detect_foods(uploaded_file)
 
-        # Fallback if AI fails
-        if food == "error":
-            st.warning("⚠️ AI failed. Enter food manually.")
-            food = st.text_input("Enter food name (e.g., rice, egg, chicken)")
+        if "error" in foods[0]:
+            st.warning("⚠️ Detection failed. Enter manually.")
+            foods = st.text_input("Enter foods (comma separated)").split(",")
 
-        if food:
-            st.success(f"🍽 Food: {food}")
+        foods = [normalize_food(f.strip()) for f in foods]
 
-            with st.spinner("📊 Getting nutrition..."):
-                nutrition = get_nutrition(food)
+        st.success(f"Detected foods: {', '.join(foods)}")
+
+        all_data = []
+
+        for food in foods:
+            nutrition = get_nutrition(food)
 
             if nutrition:
-                col1, col2, col3, col4 = st.columns(4)
+                nutrition["Food"] = food
+                all_data.append(nutrition)
 
-                col1.metric("Calories", int(nutrition["Calories"]))
-                col2.metric("Protein", int(nutrition["Protein"]))
-                col3.metric("Fat", int(nutrition["Fat"]))
-                col4.metric("Carbs", int(nutrition["Carbs"]))
+        if all_data:
+            df = pd.DataFrame(all_data)
 
-            else:
-                st.error("❌ Nutrition data not found")
+            st.subheader("📊 Nutrition Table")
+            st.dataframe(df)
+
+            # TOTALS
+            total = df[["Calories","Protein","Fat","Carbs"]].sum()
+
+            st.subheader("🔥 Total Nutrition")
+            col1, col2, col3, col4 = st.columns(4)
+
+            col1.metric("Calories", int(total["Calories"]))
+            col2.metric("Protein", int(total["Protein"]))
+            col3.metric("Fat", int(total["Fat"]))
+            col4.metric("Carbs", int(total["Carbs"]))
+
+            # -----------------------
+            # BAR CHART
+            # -----------------------
+            st.subheader("📊 Macronutrients Bar Chart")
+
+            fig, ax = plt.subplots()
+            ax.bar(total.index, total.values)
+            st.pyplot(fig)
+
+            # -----------------------
+            # PIE CHART
+            # -----------------------
+            st.subheader("🥧 Macronutrients Distribution")
+
+            fig2, ax2 = plt.subplots()
+            ax2.pie(total.values, labels=total.index, autopct='%1.1f%%')
+            st.pyplot(fig2)
