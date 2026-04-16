@@ -15,11 +15,11 @@ def get_secret(key):
 genai.configure(api_key=get_secret("GEMINI_API_KEY"))
 
 # -------------------------------
-# DETECT FOOD
+# DETECT FOOD (FAST)
 # -------------------------------
 def detect_food(image_file):
     try:
-        model = genai.GenerativeModel("gemini-3.1-flash-lite-preview")
+        model = genai.GenerativeModel("gemini-1.5-flash")
 
         image_file.seek(0)
         image_bytes = image_file.read()
@@ -48,7 +48,7 @@ def detect_food(image_file):
 
 
 # -------------------------------
-# GET NUTRITION
+# USDA NUTRITION
 # -------------------------------
 @st.cache_data(show_spinner=False)
 def get_nutrition(food):
